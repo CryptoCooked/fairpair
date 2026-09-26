@@ -33,17 +33,38 @@ function Auth() {
 
           if (profileError) throw profileError
         }
+
+        setError('Account created! Please sign in with your credentials.')
+        setIsSignUp(false)
+        setEmail('')
+        setPassword('')
+        setFirstName('')
       } else {
         // Sign in
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        console.log('Attempting login with:', email)
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
 
-        if (signInError) throw signInError
+        console.log('Login response:', { data, signInError })
+
+        if (signInError) {
+          console.error('Sign in error:', signInError)
+          throw signInError
+        }
+
+        if (data?.session) {
+          console.log('✓ Session established, redirecting to dashboard')
+          // Use window.location for a full page refresh to ensure auth state syncs
+          window.location.href = '/dashboard'
+        } else {
+          throw new Error('Login succeeded but no session was created. Please try again.')
+        }
       }
     } catch (err) {
-      setError(err.message)
+      console.error('Auth error:', err)
+      setError(err.message || 'An error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
