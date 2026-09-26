@@ -6,71 +6,62 @@ import { AuthContext } from '../App'
 function Auth() {
   const navigate = useNavigate()
   const { session } = useContext(AuthContext)
-
-  // Redirect to dashboard if session exists
-  useEffect(() => {
-    if (session) {
-      console.log('Session detected, redirecting to dashboard')
-      navigate('/dashboard')
-    }
-  }, [session, navigate])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Redirect to dashboard once App's auth listener has a session
+  useEffect(() => {
+    if (session) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [session, navigate])
 
   const handleAuth = async (e) => {
     e.preventDefault()
     setError('')
+    setInfo('')
     setLoading(true)
 
     try {
       if (isSignUp) {
-        // Sign up
+        // Sign up — first_name goes in metadata so the DB trigger saves it
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
+          options: { data: { first_name: firstName.trim() } },
         })
 
         if (signUpError) throw signUpError
 
-        // Update profile with first name (profile auto-created by trigger)
-        if (data.user && firstName) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ first_name: firstName })
-            .eq('id', data.user.id)
-
-          if (profileError) throw profileError
+        if (data.session) {
+          // Email confirmation is off: user is signed in immediately.
+          // The auth listener will redirect to the dashboard.
+          return
         }
 
-        setError('Account created! Please sign in with your credentials.')
+        setInfo(
+          'Account created! Check your email for a confirmation link, then sign in.'
+        )
         setIsSignUp(false)
-        setEmail('')
         setPassword('')
         setFirstName('')
       } else {
-        // Sign in
-        console.log('Attempting login with:', email)
+        // Sign in — the auth listener in App.jsx picks up the session and redirects
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         })
 
-        console.log('Login response:', { data, signInError })
-
-        if (signInError) {
-          console.error('Sign in error:', signInError)
-          throw signInError
-        }
+        if (signInError) throw signInError
 
         if (!data?.session) {
           throw new Error('Login succeeded but no session was created. Please try again.')
         }
-
-        console.log('✓ Session established, auth listener will redirect to dashboard')
       }
     } catch (err) {
       console.error('Auth error:', err)
@@ -91,6 +82,7 @@ function Auth() {
         </p>
 
         {error && <div className="message error">{error}</div>}
+        {info && <div className="message success">{info}</div>}
 
         <form onSubmit={handleAuth}>
           {isSignUp && (
@@ -137,6 +129,7 @@ function Auth() {
             onClick={() => {
               setIsSignUp(!isSignUp)
               setError('')
+              setInfo('')
             }}
             style={{
               background: 'none',

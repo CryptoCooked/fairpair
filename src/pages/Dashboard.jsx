@@ -45,14 +45,23 @@ function Dashboard() {
     setError('')
 
     try {
-      // Get partner's user ID
-      const { data: partnerData, error: partnerError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', partnerEmail)
-        .single()
+      if (partnerEmail.trim().toLowerCase() === (user.email || '').toLowerCase()) {
+        throw new Error("That's your own email. Enter your partner's email address.")
+      }
 
-      if (partnerError) throw new Error('Partner email not found')
+      // Look up partner via secure RPC (works before a pair exists)
+      const { data: partnerRows, error: partnerError } = await supabase.rpc(
+        'find_profile_by_email',
+        { p_email: partnerEmail }
+      )
+
+      if (partnerError) throw partnerError
+      const partnerData = partnerRows?.[0]
+      if (!partnerData) {
+        throw new Error(
+          'No FairPair account found with that email. Ask your partner to sign up first.'
+        )
+      }
 
       // Create pair
       const { error: pairError } = await supabase.from('pairs').insert({
@@ -60,7 +69,12 @@ function Dashboard() {
         user_b_id: partnerData.id,
       })
 
-      if (pairError) throw pairError
+      if (pairError) {
+        if (pairError.code === '23505') {
+          throw new Error('You are already paired with this person.')
+        }
+        throw pairError
+      }
 
       setPartnerEmail('')
       setShowCreatePair(false)
