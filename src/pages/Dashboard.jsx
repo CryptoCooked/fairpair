@@ -83,9 +83,14 @@ function Dashboard() {
       <div className="header">
         <div className="container flex-between">
           <h1>FairPair</h1>
-          <button className="secondary" onClick={handleLogout}>
-            Logout
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ fontSize: '14px', color: 'var(--gray-600)' }}>
+              Logged in as: <strong>{user?.email}</strong>
+            </span>
+            <button className="secondary" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
