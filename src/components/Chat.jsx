@@ -5,66 +5,76 @@ function Chat({ pairId, currentUserId, partnerName }) {
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
-    fetchMessages()
+    let cancelled = false
 
-    const subscription = supabase
-      .from('messages')
-      .on('*', (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setMessages((prev) => [...prev, payload.new])
-        }
-      })
-      .eq('pair_id', pairId)
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [pairId])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const fetchMessages = async () => {
-    try {
-      const { data, error } = await supabase
+    const fetchMessages = async () => {
+      const { data, error: fetchErr } = await supabase
         .from('messages')
         .select('*')
         .eq('pair_id', pairId)
         .order('created_at', { ascending: true })
 
-      if (error) throw error
-      setMessages(data || [])
-    } catch (err) {
-      console.error(err)
-    } finally {
+      if (cancelled) return
+      if (fetchErr) {
+        setError(fetchErr.message)
+      } else {
+        setMessages(data || [])
+      }
       setLoading(false)
     }
-  }
 
-  const scrollToBottom = () => {
+    fetchMessages()
+
+    const channel = supabase
+      .channel(`chat-${pairId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `pair_id=eq.${pairId}` },
+        (payload) => {
+          setMessages((prev) =>
+            prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new]
+          )
+        }
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [pairId])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  }, [messages])
 
   const handleSendMessage = async (e) => {
     e.preventDefault()
-    if (!newMessage.trim()) return
+    const content = newMessage.trim()
+    if (!content) return
+    setSending(true)
+    setError('')
 
     try {
-      const { error } = await supabase.from('messages').insert({
-        pair_id: pairId,
-        sender_id: currentUserId,
-        content: newMessage,
-      })
+      const { data, error: insErr } = await supabase
+        .from('messages')
+        .insert({ pair_id: pairId, sender_id: currentUserId, content })
+        .select()
+        .single()
 
-      if (error) throw error
+      if (insErr) throw insErr
+      // Show immediately; realtime will not duplicate it thanks to the id check
+      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
       setNewMessage('')
     } catch (err) {
-      console.error(err)
+      setError(err.message)
+    } finally {
+      setSending(false)
     }
   }
 
@@ -74,20 +84,32 @@ function Chat({ pairId, currentUserId, partnerName }) {
 
   return (
     <div className="chat-box">
+      {error && <div className="message error">{error}</div>}
       <div className="chat-messages">
         {messages.length === 0 ? (
           <p className="text-muted" style={{ textAlign: 'center', paddingTop: '40px' }}>
             Start a conversation with {partnerName}
           </p>
         ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="message-item">
-              <div className="message-sender">
-                {msg.sender_id === currentUserId ? 'You' : partnerName}
+          messages.map((msg) => {
+            const mine = msg.sender_id === currentUserId
+            return (
+              <div key={msg.id} className={`message-item ${mine ? 'mine' : 'theirs'}`}>
+                <div className="message-sender">
+                  {mine ? 'You' : partnerName}
+                  <span className="message-time">
+                    {new Date(msg.created_at).toLocaleString(undefined, {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <div className="message-content">{msg.content}</div>
               </div>
-              <div className="message-content">{msg.content}</div>
-            </div>
-          ))
+            )
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -98,9 +120,10 @@ function Chat({ pairId, currentUserId, partnerName }) {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type a message..."
+          maxLength={2000}
         />
-        <button type="submit" className="primary">
-          Send
+        <button type="submit" className="primary" disabled={sending || !newMessage.trim()}>
+          {sending ? '...' : 'Send'}
         </button>
       </form>
     </div>

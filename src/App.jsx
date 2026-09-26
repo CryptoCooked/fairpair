@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import PairDetail from './pages/PairDetail'
+import ResetPassword from './pages/ResetPassword'
 
 export const AuthContext = createContext()
 
@@ -49,9 +50,11 @@ function App() {
     <AuthContext.Provider value={{ session, user }}>
       <Routes>
         <Route path="/auth" element={<Auth />} />
-        <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/auth" />} />
-        <Route path="/pair/:pairId" element={session ? <PairDetail /> : <Navigate to="/auth" />} />
-        <Route path="/" element={session ? <Navigate to="/dashboard" /> : <Navigate to="/auth" />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/auth" replace />} />
+        <Route path="/pair/:pairId" element={session ? <PairDetail /> : <Navigate to="/auth" replace />} />
+        <Route path="/" element={<Navigate to={session ? '/dashboard' : '/auth'} replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthContext.Provider>
   )

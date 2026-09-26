@@ -71,6 +71,37 @@ function Auth() {
     }
   }
 
+  const handleForgotPassword = async () => {
+    setError('')
+    setInfo('')
+    const target = email.trim()
+    if (!target) {
+      setError('Enter your email address first, then click "Forgot password?".')
+      return
+    }
+    setLoading(true)
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(target, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (resetErr) throw resetErr
+      setInfo(`If an account exists for ${target}, a password reset link has been emailed.`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const linkStyle = {
+    background: 'none',
+    color: 'var(--primary)',
+    padding: 0,
+    fontSize: 'inherit',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+  }
+
   return (
     <div className="auth-container">
       <div className="card">
@@ -122,7 +153,15 @@ function Auth() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '14px' }}>
+        {!isSignUp && (
+          <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '14px' }}>
+            <button type="button" onClick={handleForgotPassword} style={linkStyle} disabled={loading}>
+              Forgot password?
+            </button>
+          </p>
+        )}
+
+        <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '14px' }}>
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button
             type="button"
@@ -131,14 +170,7 @@ function Auth() {
               setError('')
               setInfo('')
             }}
-            style={{
-              background: 'none',
-              color: 'var(--primary)',
-              padding: 0,
-              fontSize: 'inherit',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-            }}
+            style={linkStyle}
           >
             {isSignUp ? 'Sign In' : 'Sign Up'}
           </button>
