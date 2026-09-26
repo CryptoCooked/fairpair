@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 
 function Auth() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -56,8 +58,8 @@ function Auth() {
 
         if (data?.session) {
           console.log('✓ Session established, redirecting to dashboard')
-          // Use window.location for a full page refresh to ensure auth state syncs
-          window.location.href = '/dashboard'
+          // Small delay to ensure session is persisted before navigating
+          setTimeout(() => navigate('/dashboard'), 100)
         } else {
           throw new Error('Login succeeded but no session was created. Please try again.')
         }
