@@ -24,15 +24,12 @@ function Auth() {
 
         if (signUpError) throw signUpError
 
-        // Create profile
-        if (data.user) {
+        // Update profile with first name (profile auto-created by trigger)
+        if (data.user && firstName) {
           const { error: profileError } = await supabase
             .from('profiles')
-            .insert({
-              id: data.user.id,
-              email,
-              first_name: firstName,
-            })
+            .update({ first_name: firstName })
+            .eq('id', data.user.id)
 
           if (profileError) throw profileError
         }
