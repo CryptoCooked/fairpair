@@ -2,10 +2,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "^/(?!.*\\.(?:js|css|svg|png|jpg|ico|txt|json)$).*$",
+      "dest": "/index.html"
     }
   ]
 }
