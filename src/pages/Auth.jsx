@@ -1,7 +1,19 @@
-import { useState } from 'react'
+import { useState, useContext, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { AuthContext } from '../App'
 
 function Auth() {
+  const navigate = useNavigate()
+  const { session } = useContext(AuthContext)
+
+  // Redirect to dashboard if session exists
+  useEffect(() => {
+    if (session) {
+      console.log('Session detected, redirecting to dashboard')
+      navigate('/dashboard')
+    }
+  }, [session, navigate])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
